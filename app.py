@@ -164,7 +164,6 @@ lat, lon = CITIES[selected_city]
 
 st.sidebar.text(f"위도: {lat}° / 경도: {lon}°")
 
-# 시간 설정 (현재 한국 시간 기준)
 KST = timezone(timedelta(hours=9))
 now = datetime.now(KST)
 
@@ -180,11 +179,12 @@ col2.metric("일출 / 남중 / 일몰", f"{rise} / {transit} / {set_t}")
 col3.metric("☀️ 태양 위치", f"고도 {sun_alt:.1f}° / 방위 {sun_az:.1f}°")
 col4.metric("🌙 달 위치", f"고도 {moon_alt:.1f}° / 방위 {moon_az:.1f}°")
 
-# --- 4. Plotly 3D 천구 뷰 구현 ---
+# --- 4. Plotly 3D 천구 뷰 구현 (동서 방향 교정) ---
 def alt_az_to_cartesian(azimuth, altitude, radius=10):
     az_rad = math.radians(azimuth)
     alt_rad = math.radians(altitude)
-    x = -radius * math.cos(alt_rad) * math.sin(az_rad)
+    # 핵심 교정: 동쪽(90도)이 왼쪽(-X), 서쪽(270도)이 오른쪽(+X)으로 오도록 부호 변경
+    x = radius * math.cos(alt_rad) * math.sin(az_rad)
     y = radius * math.cos(alt_rad) * math.cos(az_rad)
     z = radius * math.sin(alt_rad)
     return x, y, z
@@ -205,8 +205,13 @@ fig.add_trace(go.Scatter3d(
     name='지평선'
 ))
 
-# 2. 방위 표시 (남, 북, 동, 서)
-directions = [(180, "남 (정면)", "red"), (0, "북 (뒤)", "blue"), (90, "동 (왼쪽)", "orange"), (270, "서 (오른쪽)", "green")]
+# 2. 방위 표시 (정면=남, 뒤=북, 왼쪽=동, 오른쪽=서)
+directions = [
+    (180, "남 (정면)", "red"), 
+    (0, "북 (뒤)", "blue"), 
+    (90, "동 (왼쪽)", "orange"), 
+    (270, "서 (오른쪽)", "green")
+]
 for az, label, color in directions:
     dx, dy, dz = alt_az_to_cartesian(az, 0, 10)
     fig.add_trace(go.Scatter3d(
@@ -223,7 +228,7 @@ for az, label, color in directions:
         showlegend=False
     ))
 
-# 3. 관측자 (사람 아이콘 위치)
+# 3. 관측자 아이콘
 fig.add_trace(go.Scatter3d(
     x=[0], y=[0], z=[0],
     mode='text+markers',
@@ -304,7 +309,7 @@ fig.update_layout(
 # 스트림릿에 3D 그래프 출력
 st.plotly_chart(fig, use_container_width=True)
 
-# 자동 새로고침 (1초마다 실시간 반영)
+# 자동 새로고침 버튼
 st.markdown("---")
 if st.button("🔄 화면 새로고침"):
     st.rerun()
